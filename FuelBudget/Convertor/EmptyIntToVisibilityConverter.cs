@@ -13,16 +13,16 @@ namespace FuelBudget.Convertor
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            double? id = (double)value;
+            int? id = (int)value;
 
             if (id!=null || id>0)
             {
-                return Visibility.Visible; // В противном случае кнопка будет видима
+                return Visibility.Visible; 
 
             }
             else
             {
-                return Visibility.Collapsed; // Если значение пусто или null, кнопка будет скрыта
+                return Visibility.Collapsed; 
 
             }
         }
