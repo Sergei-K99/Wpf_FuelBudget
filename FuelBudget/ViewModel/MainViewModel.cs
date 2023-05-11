@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reflection.Metadata;
@@ -14,30 +15,43 @@ namespace FuelBudget.ViewModel
 {
     public class MainViewModel : BaseViewModel
     {
-        public ObservableCollection<DepartmentButget> DepartmentButgetList { get; set; }
+        public ObservableCollection<DepartmentButget> DepartmentButgetList { get; set; } = new();
         public List<Fuel> FuelList { get; set; }
         public List<Department> DepatrmentList { get; set; }
+        DateTime? _selectedDate;
+        public DateTime? SelectedDate { get { return _selectedDate; } set {
+                using (DataContext context = new DataContext())
+                {
+                    var point = context.MeasuringPoints.Where(q=>q.DateTime.Month==value.Value.Month && q.DateTime.Year == value.Value.Year).FirstOrDefault();
+                    if (point != null)
+                    {
+                        if (DepartmentButgetList.Count > 0)
+                        {
+                            DepartmentButgetList.Clear();
+                        }
+                        var list = context.DepartmentButgets.Include(x => x.Department).Include(x => x.FuelDetails).ThenInclude(x => x.Fuel).Where(x => x.MeasuringPointId == point.Id);
+                        foreach (var q in list)
+                        {
+                            DepartmentButgetList.Add(q);
+                        }
+                    }
+                    else
+                    {
+                        DepartmentButgetList.Clear();
+                    }
+                    _selectedDate = value;
+                }
+            } }
 
         public MainViewModel()
         {
             using (DataContext context = new DataContext())
             {
-                DepartmentButgetList = new ObservableCollection<DepartmentButget>(context.DepartmentButgets.Include(x => x.Department).Include(x => x.FuelDetails).ThenInclude(x => x.Fuel).ToList());
                 FuelList = new List<Fuel>(context.Fuels.ToList());
                 DepatrmentList = new List<Department>(context.Departments.ToList());
             }
         }
-        private bool isMouseOverRow;
-        public bool IsMouseOverRow
-        {
-            get { return isMouseOverRow; }
-            set
-            {
-                isMouseOverRow = value;
-                NotifyPropertyChanged(nameof(IsMouseOverRow));
-            }
-        }
-
+       
         private RelayCommand saveCommand;
         public RelayCommand SaveCommand
         {
@@ -48,11 +62,28 @@ namespace FuelBudget.ViewModel
                   {
                       using (DataContext context = new DataContext())
                       {
-                          foreach (var x in DepartmentButgetList)
-                          {
-                              context.DepartmentButgets.Update(x);
+                          MeasuringPoint? point = context.MeasuringPoints.Where(q => q.DateTime.Month == SelectedDate.Value.Month && q.DateTime.Year == SelectedDate.Value.Year).FirstOrDefault();
+                          if (point == null) {
+                              point = new MeasuringPoint { DateTime = (DateTime)SelectedDate };
+                              foreach (var x in DepartmentButgetList)
+                              {
+                                  x.CalcAllFactCost();
+                                  x.CalcAllPlanCost();
+                                  point.DepartmentButgets.Add(x);
+                              }
+                              context.MeasuringPoints.Add(point);
                           }
-                          context.SaveChanges();
+                          else
+                          {
+                              foreach (var x in DepartmentButgetList)
+                              {
+                                  x.CalcAllFactCost();
+                                  x.CalcAllPlanCost();
+                                  context.DepartmentButgets.Update(x);
+                              }
+                          }
+                          context.SaveChanges(); // Error -------------------------------------
+
                           DepartmentButgetList.Clear();
                           foreach (var q in (context.DepartmentButgets.Include(x => x.Department).Include(x => x.FuelDetails).ThenInclude(x => x.Fuel)))
                           {
@@ -99,8 +130,8 @@ namespace FuelBudget.ViewModel
         {
             get
             {
-                return deleteCommand ??
-                  (deleteCommand = new RelayCommand(obj =>
+                return deleteDepartmantCommand ??
+                  (deleteDepartmantCommand = new RelayCommand(obj =>
                   {
                       using (DataContext context = new DataContext())
                       {
@@ -108,18 +139,15 @@ namespace FuelBudget.ViewModel
 
                           if (selected != null)
                           {
-                              DepartmentButget? x = context.DepartmentButgets.FirstOrDefault(x => x.Id == selected.Id);
-                              if (x != null)
+                               context.DepartmentButgets.Remove(selected);
+                               context.SaveChanges();
+                               DepartmentButgetList.Clear();
+                              foreach (var q in (context.DepartmentButgets.Include(x => x.Department).Include(x => x.FuelDetails).ThenInclude(x => x.Fuel)))
                               {
-                                  context.DepartmentButgets.Remove(x);
-                                  context.SaveChanges();
-                                  DepartmentButgetList.Clear();
-                                  foreach (var q in (context.DepartmentButgets.Include(x => x.Department).Include(x => x.FuelDetails).ThenInclude(x => x.Fuel)))
-                                  {
-                                      DepartmentButgetList.Add(q);
-                                  }
+                                  DepartmentButgetList.Add(q);
                               }
                           }
+                          
                       }
                   }));
             }
