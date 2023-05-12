@@ -22,24 +22,7 @@ namespace FuelBudget.ViewModel
         public DateTime? SelectedDate { get { return _selectedDate; } set {
                 using (DataContext context = new DataContext())
                 {
-                    var point = context.MeasuringPoints.Where(q=>q.DateTime.Month==value.Value.Month && q.DateTime.Year == value.Value.Year).FirstOrDefault();
-                    if (point != null)
-                    {
-                        if (DepartmentButgetList.Count > 0)
-                        {
-                            DepartmentButgetList.Clear();
-                        }
-                        var list = context.DepartmentButgets.Include(x => x.Department).Include(x => x.FuelDetails).ThenInclude(x => x.Fuel).Where(x => x.MeasuringPointId == point.Id);
-                        foreach (var q in list)
-                        {
-                            DepartmentButgetList.Add(q);
-                        }
-                    }
-                    else
-                    {
-                        DepartmentButgetList.Clear();
-                    }
-                    _selectedDate = value;
+                    _selectedDate = value; ShowInfoByDate();
                 }
             } }
 
@@ -51,7 +34,26 @@ namespace FuelBudget.ViewModel
                 DepatrmentList = new List<Department>(context.Departments.ToList());
             }
         }
+
+        void ShowInfoByDate()
+        {
+            using (DataContext context = new DataContext())
+            {
+                var point = context.MeasuringPoints.Where(q => q.DateTime.Month == SelectedDate.Value.Month && q.DateTime.Year == SelectedDate.Value.Year).FirstOrDefault();
+                DepartmentButgetList.Clear();
+                if (point != null)
+                {
+                    var list = context.DepartmentButgets.Include(x => x.Department).Include(x => x.FuelDetails).ThenInclude(x => x.Fuel).Where(x => x.MeasuringPointId == point.Id);
+                    foreach (var q in list)
+                    {
+                        DepartmentButgetList.Add(q);
+                    }
+                }
+               
+            }
+        }
        
+        
         private RelayCommand saveCommand;
         public RelayCommand SaveCommand
         {
@@ -69,12 +71,23 @@ namespace FuelBudget.ViewModel
                               {
                                   x.CalcAllFactCost();
                                   x.CalcAllPlanCost();
+                                  x.Department = context.Departments.Find(x.Department.Id);
+                                  foreach (var y in x.FuelDetails)
+                                  {
+                                      y.Fuel = context.Fuels.Find(y.Fuel.Id);
+                                  }
+
                                   point.DepartmentButgets.Add(x);
+                                  
                               }
                               context.MeasuringPoints.Add(point);
                           }
                           else
                           {
+                              if (point != null)
+                              {
+                                  context.Entry(point).State = EntityState.Detached;
+                              }
                               foreach (var x in DepartmentButgetList)
                               {
                                   x.CalcAllFactCost();
@@ -82,13 +95,9 @@ namespace FuelBudget.ViewModel
                                   context.DepartmentButgets.Update(x);
                               }
                           }
-                          context.SaveChanges(); // Error -------------------------------------
+                          context.SaveChanges();
 
-                          DepartmentButgetList.Clear();
-                          foreach (var q in (context.DepartmentButgets.Include(x => x.Department).Include(x => x.FuelDetails).ThenInclude(x => x.Fuel)))
-                          {
-                              DepartmentButgetList.Add(q);
-                          }
+                          ShowInfoByDate();
                       }
                   }));
             }
@@ -113,11 +122,7 @@ namespace FuelBudget.ViewModel
                               {
                                   context.FuelDetails.Remove(x);
                                   context.SaveChanges();
-                                  DepartmentButgetList.Clear();
-                                  foreach (var q in (context.DepartmentButgets.Include(x => x.Department).Include(x => x.FuelDetails).ThenInclude(x => x.Fuel)))
-                                  {
-                                      DepartmentButgetList.Add(q);
-                                  }
+                                  ShowInfoByDate();
                               }
                           }
                       }
@@ -140,12 +145,18 @@ namespace FuelBudget.ViewModel
                           if (selected != null)
                           {
                                context.DepartmentButgets.Remove(selected);
-                               context.SaveChanges();
-                               DepartmentButgetList.Clear();
-                              foreach (var q in (context.DepartmentButgets.Include(x => x.Department).Include(x => x.FuelDetails).ThenInclude(x => x.Fuel)))
+                               MeasuringPoint? point = context.MeasuringPoints.Where(q => q.DateTime.Month == SelectedDate.Value.Month && q.DateTime.Year == SelectedDate.Value.Year).FirstOrDefault();
+                             
+                              context.SaveChanges();
+                              if (point != null)
                               {
-                                  DepartmentButgetList.Add(q);
+                                  if (point.DepartmentButgets.Count == 0)
+                                  {
+                                      context.MeasuringPoints.Remove(point);
+                                      context.SaveChanges();
+                                  }
                               }
+                              ShowInfoByDate();
                           }
                           
                       }
