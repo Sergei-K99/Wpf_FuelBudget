@@ -10,6 +10,6 @@ namespace FuelBudget.Model
     {
         public int Id { get; set; }
         public DateTime DateTime { get; set; }
-        public List<DepartmentButget> DepartmentButgets { get; set; } = new();
+        public List<DepartmentButget>? DepartmentButgets { get; set; }
     }
 }

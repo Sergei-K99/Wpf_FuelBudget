@@ -70,3 +70,4 @@ E:\C#\WPF\Fuel_budget\FuelBudget\FuelBudget\obj\Debug\net7.0-windows\FuelBudget.
 E:\C#\WPF\Fuel_budget\FuelBudget\FuelBudget\obj\Debug\net7.0-windows\ref\FuelBudget.dll
 E:\C#\WPF\Fuel_budget\FuelBudget\FuelBudget\obj\Debug\net7.0-windows\View\MainWindow.g.cs
 E:\C#\WPF\Fuel_budget\FuelBudget\FuelBudget\obj\Debug\net7.0-windows\View\MainWindow.baml
+E:\C#\WPF\Fuel_budget\FuelBudget\FuelBudget\obj\Debug\net7.0-windows\App.baml

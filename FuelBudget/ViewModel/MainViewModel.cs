@@ -18,42 +18,50 @@ namespace FuelBudget.ViewModel
         public ObservableCollection<DepartmentButget> DepartmentButgetList { get; set; } = new();
         public List<Fuel> FuelList { get; set; }
         public List<Department> DepatrmentList { get; set; }
-        DateTime? _selectedDate;
-        public DateTime? SelectedDate { get { return _selectedDate; } set {
-                using (DataContext context = new DataContext())
-                {
-                    _selectedDate = value; ShowInfoByDate();
-                }
-            } }
+        DateTime _selectedDate;
+        public DateTime SelectedDate
+        {
+            get { return _selectedDate; }
+            set
+            {
+                _selectedDate = value; ShowInfoByDate();
+
+            }
+        }
+
+        CommandToDB command;
 
         public MainViewModel()
         {
-            using (DataContext context = new DataContext())
-            {
-                FuelList = new List<Fuel>(context.Fuels.ToList());
-                DepatrmentList = new List<Department>(context.Departments.ToList());
-            }
+            command = new CommandToDB();
+            FuelList = new List<Fuel>(command.GetFuel());
+            DepatrmentList = new List<Department>(command.GetDepartment());
+            SelectedDate = DateTime.Today.Date;
         }
 
         void ShowInfoByDate()
         {
             using (DataContext context = new DataContext())
             {
-                var point = context.MeasuringPoints.Where(q => q.DateTime.Month == SelectedDate.Value.Month && q.DateTime.Year == SelectedDate.Value.Year).FirstOrDefault();
                 DepartmentButgetList.Clear();
+
+                var point = command.GetMeasuringPointsByDate(SelectedDate);
+
                 if (point != null)
                 {
-                    var list = context.DepartmentButgets.Include(x => x.Department).Include(x => x.FuelDetails).ThenInclude(x => x.Fuel).Where(x => x.MeasuringPointId == point.Id);
+                    var list = command.GetDepartmentButgetByIdMeasuringPoints(point.Id);
                     foreach (var q in list)
                     {
                         DepartmentButgetList.Add(q);
                     }
+
+                    //DepartmentButgetList.Add(new DepartmentButget());
+
                 }
-               
+
             }
         }
-       
-        
+
         private RelayCommand saveCommand;
         public RelayCommand SaveCommand
         {
@@ -62,43 +70,34 @@ namespace FuelBudget.ViewModel
                 return saveCommand ??
                   (saveCommand = new RelayCommand(obj =>
                   {
-                      using (DataContext context = new DataContext())
+
+                      MeasuringPoint? point = command.GetMeasuringPointsByDate(SelectedDate);
+                      if (point == null)
                       {
-                          MeasuringPoint? point = context.MeasuringPoints.Where(q => q.DateTime.Month == SelectedDate.Value.Month && q.DateTime.Year == SelectedDate.Value.Year).FirstOrDefault();
-                          if (point == null) {
-                              point = new MeasuringPoint { DateTime = (DateTime)SelectedDate };
-                              foreach (var x in DepartmentButgetList)
-                              {
-                                  x.CalcAllFactCost();
-                                  x.CalcAllPlanCost();
-                                  x.Department = context.Departments.Find(x.Department.Id);
-                                  foreach (var y in x.FuelDetails)
-                                  {
-                                      y.Fuel = context.Fuels.Find(y.Fuel.Id);
-                                  }
-
-                                  point.DepartmentButgets.Add(x);
-                                  
-                              }
-                              context.MeasuringPoints.Add(point);
-                          }
-                          else
+                          point = new MeasuringPoint { DateTime = SelectedDate, DepartmentButgets = new List<DepartmentButget>() };
+                          foreach (var x in DepartmentButgetList)
                           {
-                              if (point != null)
+                              point.DepartmentButgets.Add(x);
+                          }
+                          command.CreateMeasuringPoints(point);
+                      }
+                      else
+                      {
+                          foreach (var x in DepartmentButgetList)
+                          {
+                              x.MeasuringPointId = point.Id;
+                              if (x.Id != 0)
                               {
-                                  context.Entry(point).State = EntityState.Detached;
+                                  command.UpdateDepartmentButget(x);
                               }
-                              foreach (var x in DepartmentButgetList)
+                              else
                               {
-                                  x.CalcAllFactCost();
-                                  x.CalcAllPlanCost();
-                                  context.DepartmentButgets.Update(x);
+                                  command.CreateDepartmentButget(x);
                               }
                           }
-                          context.SaveChanges();
-
-                          ShowInfoByDate();
                       }
+                      ShowInfoByDate();
+
                   }));
             }
         }
@@ -111,20 +110,11 @@ namespace FuelBudget.ViewModel
                 return deleteCommand ??
                   (deleteCommand = new RelayCommand(obj =>
                   {
-                      using (DataContext context = new DataContext())
+                      FuelDetail? selected = obj as FuelDetail;
+                      if (selected != null)
                       {
-                          FuelDetail? selected = obj as FuelDetail;
-
-                          if (selected != null)
-                          {
-                              FuelDetail? x = context.FuelDetails.FirstOrDefault(x => x.Id == selected.Id);
-                              if (x != null)
-                              {
-                                  context.FuelDetails.Remove(x);
-                                  context.SaveChanges();
-                                  ShowInfoByDate();
-                              }
-                          }
+                          command.DeleteFuelDetails(selected.Id);
+                          ShowInfoByDate();
                       }
                   }));
             }
@@ -138,33 +128,17 @@ namespace FuelBudget.ViewModel
                 return deleteDepartmantCommand ??
                   (deleteDepartmantCommand = new RelayCommand(obj =>
                   {
-                      using (DataContext context = new DataContext())
-                      {
-                          DepartmentButget? selected = obj as DepartmentButget;
+                      DepartmentButget? selected = obj as DepartmentButget;
 
-                          if (selected != null)
-                          {
-                               context.DepartmentButgets.Remove(selected);
-                               MeasuringPoint? point = context.MeasuringPoints.Where(q => q.DateTime.Month == SelectedDate.Value.Month && q.DateTime.Year == SelectedDate.Value.Year).FirstOrDefault();
-                             
-                              context.SaveChanges();
-                              if (point != null)
-                              {
-                                  if (point.DepartmentButgets.Count == 0)
-                                  {
-                                      context.MeasuringPoints.Remove(point);
-                                      context.SaveChanges();
-                                  }
-                              }
-                              ShowInfoByDate();
-                          }
-                          
+                      if (selected != null)
+                      {
+                          command.DeleteDepartmentButget(selected.Id);
+
+                          ShowInfoByDate();
                       }
                   }));
             }
         }
-
-
 
         public List<Fuel> GetFuels()
         {
