@@ -25,11 +25,10 @@ namespace FuelBudget.ViewModel
             set
             {
                 _selectedDate = value; ShowInfoByDate();
-
             }
         }
 
-        CommandToDB command;
+        private CommandToDB command;
 
         public MainViewModel()
         {
@@ -41,24 +40,16 @@ namespace FuelBudget.ViewModel
 
         void ShowInfoByDate()
         {
-            using (DataContext context = new DataContext())
+            DepartmentButgetList.Clear();
+            var point = command.GetMeasuringPointsByDate(SelectedDate);
+
+            if (point != null)
             {
-                DepartmentButgetList.Clear();
-
-                var point = command.GetMeasuringPointsByDate(SelectedDate);
-
-                if (point != null)
+                var list = command.GetDepartmentButgetByIdMeasuringPoints(point.Id);
+                foreach (var q in list)
                 {
-                    var list = command.GetDepartmentButgetByIdMeasuringPoints(point.Id);
-                    foreach (var q in list)
-                    {
-                        DepartmentButgetList.Add(q);
-                    }
-
-                    //DepartmentButgetList.Add(new DepartmentButget());
-
+                    DepartmentButgetList.Add(q);
                 }
-
             }
         }
 
@@ -77,6 +68,7 @@ namespace FuelBudget.ViewModel
                           point = new MeasuringPoint { DateTime = SelectedDate, DepartmentButgets = new List<DepartmentButget>() };
                           foreach (var x in DepartmentButgetList)
                           {
+                              command.CalcBudget(x);
                               point.DepartmentButgets.Add(x);
                           }
                           command.CreateMeasuringPoints(point);
@@ -88,10 +80,12 @@ namespace FuelBudget.ViewModel
                               x.MeasuringPointId = point.Id;
                               if (x.Id != 0)
                               {
+                                  command.CalcBudget(x);
                                   command.UpdateDepartmentButget(x);
                               }
                               else
                               {
+                                  command.CalcBudget(x);
                                   command.CreateDepartmentButget(x);
                               }
                           }

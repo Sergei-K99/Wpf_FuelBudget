@@ -309,5 +309,40 @@ namespace FuelBudget.Model.Data
                 }
             }
         }
+        public bool CalcBudget(DepartmentButget obj)
+        {
+            using (DataContext context = new DataContext())
+            {
+                if (obj != null)
+                {
+                    try
+                    {
+                        if (obj.FuelDetails.Count > 0)
+                        {
+                            obj.GetAllFactCost = 0;
+                            foreach (var x in obj.FuelDetails)
+                            {
+                                obj.GetAllFactCost += x.FuelFactCost * x.VolumeFact;
+                            }
+                        }
+                        if (obj.FuelDetails.Count > 0)
+                        {
+                            obj.GetAllPlanCost = 0;
+                            foreach (var x in obj.FuelDetails)
+                            {
+                                obj.GetAllPlanCost += x.FuelPlanCost * x.VolumePlan;
+                            }
+                        }
+                        context.SaveChanges();
+                        return true;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }
+                return false;
+            }
+        }
     }
 }
